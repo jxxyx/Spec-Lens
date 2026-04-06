@@ -20,7 +20,7 @@ def process_video(video_path: str):
         #Pair the image path with its text so we know exactly WHERE the words came from
         all_text.append({
             "frame": frame,
-            "text": text
+            "ocr_results": text
         })
 
     return all_text
