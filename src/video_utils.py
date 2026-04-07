@@ -1,46 +1,81 @@
-#This is the script that will be used to handle video input and transforming it into frames
+# This script handles video input and transforms it into frames
 
-#Import the necessary library
 import cv2
+import shutil
 from pathlib import Path
 
-def extract_frames(video_path: str, output_folder: str, interval: int = 30):
-    #Convert folder string into a Path Object and create folder if the folder does not exist
+
+def extract_frames(
+    video_path: str,
+    output_folder: str,
+    interval: int = 30,
+    clear_existing: bool = True
+):
+    """
+    Extract frames from a video at a fixed interval.
+
+    Args:
+        video_path (str): Path to the input video file.
+        output_folder (str): Folder where extracted frames will be saved.
+        interval (int): Save 1 frame every 'interval' frames.
+        clear_existing (bool): If True, delete existing output folder contents first.
+
+    Returns:
+        list[str]: List of saved frame file paths.
+    """
+
+    # Convert folder string into a Path object
     output_path = Path(output_folder)
+
+    # Clear old frames if requested
+    if clear_existing and output_path.exists():
+        shutil.rmtree(output_path)
+        print(f"[INFO] Cleared existing frames in: {output_folder}")
+
+    # Recreate output folder
     output_path.mkdir(parents=True, exist_ok=True)
 
-    #Start the process by opening the video file to read
+    # Open the video file
     cap = cv2.VideoCapture(video_path)
 
-    #Counts total frame in the video
-    frame_count = 0 
-    #Counts frames that has been saved as images
-    saved_count = 0
-    saved_frames = []
+    # Check if the video opened successfully
+    if not cap.isOpened():
+        raise FileNotFoundError(f"Could not open video file: {video_path}")
 
-    #Function to read the video frame by frame
+    # Validate interval
+    if interval <= 0:
+        cap.release()
+        raise ValueError("Interval must be greater than 0.")
+
+    frame_count = 0      # total frames read
+    saved_count = 0      # total frames saved
+    saved_frames = []    # list of saved frame paths
+
+    # Read video frame by frame
     while True:
-        #frame is the actual image data for the specific moment
         success, frame = cap.read()
 
-        #Break the process if the video has reached the end
+        # Stop if video ends
         if not success:
             break
-        
-        #This is the function to save every X frames (the interval)
+
+        # Save every X frames
         if frame_count % interval == 0:
-            #Create a filename like "data/frames/frame_0.jpg"
             frame_file = output_path / f"frame_{saved_count}.jpg"
 
-            #Write the image data to a physical file on your hard drive
+            # Save frame to disk
             cv2.imwrite(str(frame_file), frame)
 
-            #Record the path so our pipeline knows where to find it later
+            # Store path for later pipeline use
             saved_frames.append(str(frame_file))
             saved_count += 1
 
         frame_count += 1
 
-    #Close video file to free up system memory
+    # Release video memory
     cap.release()
+
+    print(f"[INFO] Total frames read: {frame_count}")
+    print(f"[INFO] Total frames saved: {saved_count}")
+
     return saved_frames
