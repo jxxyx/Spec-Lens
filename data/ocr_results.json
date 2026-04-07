@@ -255,6 +255,15 @@
                 "confidence": 0.9995654821395874,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "Sorry;",
+            "ATM is temporarily",
+            "Out of Service",
+            "shute",
+            "teck",
+            "CASH"
         ]
     },
     {
@@ -421,6 +430,14 @@
                 "confidence": 0.9995770119124434,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "Sorry:",
+            "ATM is temporarily",
+            "Out of Service",
+            "conicein",
+            "CASH"
         ]
     },
     {
@@ -587,6 +604,13 @@
                 "confidence": 0.5028904820274189,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "ATM is temporarily",
+            "Out of Service",
+            "CASH",
+            "Sorry:"
         ]
     },
     {
@@ -776,6 +800,12 @@
                 "confidence": 0.15731733300599948,
                 "is_low_confidence": true
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "ATM is temporarily",
+            "Out of Service",
+            "CASH"
         ]
     },
     {
@@ -965,6 +995,15 @@
                 "confidence": 0.999828040599823,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "Sorry;",
+            "ATM is temporarily",
+            "Out of Service",
+            "snutce",
+            "teck",
+            "CASH"
         ]
     },
     {
@@ -1108,6 +1147,13 @@
                 "confidence": 0.8792184978764924,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "Sorry:",
+            "ATM is temporarily",
+            "Out of Service",
+            "CASH"
         ]
     },
     {
@@ -1251,6 +1297,13 @@
                 "confidence": 0.999638557434082,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "Sorry:",
+            "ATM is temporarily",
+            "Out of Service",
+            "CASH"
         ]
     },
     {
@@ -1394,6 +1447,13 @@
                 "confidence": 0.9992570281028748,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "Sorry:",
+            "ATM is temporarily",
+            "Out of Service",
+            "CASH"
         ]
     },
     {
@@ -1560,6 +1620,13 @@
                 "confidence": 0.9996412992477417,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "Sorry;",
+            "ATM is temporarily",
+            "Out of Service",
+            "CASH"
         ]
     },
     {
@@ -1703,6 +1770,13 @@
                 "confidence": 0.999810516834259,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "Sorry:",
+            "ATM is temporarily",
+            "Out of Service",
+            "CASH"
         ]
     },
     {
@@ -1915,6 +1989,15 @@
                 "confidence": 0.9997050166130066,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "Sorry:",
+            "ATM is temporarily",
+            "Out of Service",
+            "shuf",
+            "teck",
+            "CASH"
         ]
     },
     {
@@ -2127,6 +2210,14 @@
                 "confidence": 0.9997578859329224,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "Sorry:",
+            "ATM is temporarily",
+            "Out of Service",
+            "shuz=",
+            "CASH"
         ]
     },
     {
@@ -2362,6 +2453,15 @@
                 "confidence": 0.99974125623703,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "Sorry:",
+            "ATM is temporarily",
+            "Out of Service",
+            "shu",
+            "teck",
+            "CASH"
         ]
     },
     {
@@ -2528,6 +2628,13 @@
                 "confidence": 0.5433414578437805,
                 "is_low_confidence": false
             }
+        ],
+        "cleaned_text": [
+            "ATM",
+            "ATM is temporarily",
+            "Out of Service",
+            "CASH",
+            "Sory"
         ]
     }
 ]

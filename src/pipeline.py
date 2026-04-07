@@ -2,6 +2,7 @@
 
 from src.video_utils import extract_frames
 from src.ocr_utils import extract_text_from_image
+from src.preprocess import clean_ocr_results
 
 
 def process_video(
@@ -42,10 +43,12 @@ def process_video(
         print(f"[INFO] Processing frame {idx + 1}/{len(frames)}: {frame}")
 
         ocr_results = extract_text_from_image(frame)
+        cleaned_text = clean_ocr_results(ocr_results)
 
         all_results.append({
             "frame": frame,
-            "ocr_results": ocr_results
+            "ocr_results": ocr_results,
+            "cleaned_text": cleaned_text
         })
 
     print("[INFO] OCR processing complete.")
