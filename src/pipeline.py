@@ -1,6 +1,7 @@
 from pathlib import Path
 from src.video_utils import extract_frames
 from src.ocr_utils import extract_text_from_image
+from src.deepseekocr_utils import extract_text_deepseek
 from src.preprocess import clean_ocr_results
 from src.io_utils import save_json, load_json, file_exists
 
@@ -66,9 +67,13 @@ def process_video(
         else:
             print(f"[INFO] Processing frame {idx + 1}/{len(frames)}: {frame}")
 
-            # For now, only EasyOCR is active here
-            # Later, you can add DeepSeek-OCR switching here
-            ocr_results = extract_text_from_image(frame)
+            if ocr_engine == "easyocr":
+                ocr_results = extract_text_from_image(frame)
+            elif ocr_engine == "deepseek":
+                ocr_results = extract_text_deepseek(frame)
+            else:
+                raise ValueError(f"Unsupported OCR engine: {ocr_engine}")
+            
             cleaned_text = clean_ocr_results(ocr_results)
 
             frame_result = {
