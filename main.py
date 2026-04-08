@@ -1,15 +1,33 @@
-#To run the code to test if the skeleton works
-
-#Import function from src
-# To run the code to test if the skeleton works
-
 from src.pipeline import process_video
 import json
 
 if __name__ == "__main__":
     video_path = "data/raw/video1.mp4"
 
-    results = process_video(video_path)
+    # -----------------------------
+    # RESUME TEST SETTINGS
+    # -----------------------------
+    # FIRST TEST RUN:
+    # clear_frames=True
+    # resume=True
+    # max_frames=3
+    #
+    # SECOND TEST RUN:
+    # clear_frames=False
+    # resume=True
+    # max_frames=None
+    # -----------------------------
+
+    clear_frames = True
+    resume = True
+    max_frames = 3
+
+    results = process_video(
+        video_path=video_path,
+        clear_frames=clear_frames,
+        resume=resume,
+        max_frames=max_frames
+    )
 
     for frame_result in results:
         print(f"\nFrame: {frame_result['frame']}")
