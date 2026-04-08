@@ -49,12 +49,16 @@ def extract_text_deepseek(image_path: str):
     # Plain OCR prompt
     prompt = "<image>\nExtract all readable text from this image."
 
+    # IMPORTANT: output_path must be a real path, not None
+    output_dir = "/content/deepseek_outputs"
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
     with torch.no_grad():
         response = model.infer(
             tokenizer,
             prompt=prompt,
             image_file=image_file,
-            output_path=None
+            output_path=output_dir
         )
 
     extracted_text = str(response).strip()
