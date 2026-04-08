@@ -1,0 +1,69 @@
+from pathlib import Path
+from PIL import Image
+import torch
+from transformers import AutoModel, AutoTokenizer
+
+MODEL_NAME = "deepseek-ai/DeepSeek-OCR"
+
+tokenizer = None
+model = None
+
+
+def load_deepseek_model():
+    global tokenizer, model
+
+    if tokenizer is None or model is None:
+        print("[INFO] Loading DeepSeek-OCR model...")
+
+        tokenizer = AutoTokenizer.from_pretrained(
+            MODEL_NAME,
+            trust_remote_code=True
+        )
+
+        model = AutoModel.from_pretrained(
+            MODEL_NAME,
+            trust_remote_code=True,
+            use_safetensors=True,
+            torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32
+        )
+
+        if torch.cuda.is_available():
+            model = model.cuda()
+
+        model = model.eval()
+
+        print("[INFO] DeepSeek-OCR model loaded successfully.")
+
+    return tokenizer, model
+
+
+def extract_text_deepseek(image_path: str):
+    """
+    Run DeepSeek-OCR on a single image and return output
+    in a structure compatible with the existing pipeline.
+    """
+    tokenizer, model = load_deepseek_model()
+
+    image_file = str(Path(image_path))
+
+    # Plain OCR prompt
+    prompt = "<image>\nExtract all readable text from this image."
+
+    with torch.no_grad():
+        response = model.infer(
+            tokenizer,
+            prompt=prompt,
+            image_file=image_file,
+            output_path=None
+        )
+
+    extracted_text = str(response).strip()
+
+    return [
+        {
+            "bbox": None,
+            "text": extracted_text,
+            "confidence": 1.0,
+            "is_low_confidence": False
+        }
+    ]
