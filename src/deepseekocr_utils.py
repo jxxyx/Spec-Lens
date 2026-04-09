@@ -23,13 +23,14 @@ def load_deepseek_model():
             MODEL_NAME,
             trust_remote_code=True,
             use_safetensors=True,
-            _attn_implementation="flash_attention_2"
+            _attn_implementation="flash_attention_2",
+            torch_dtype=torch.bfloat16
         )
 
-        if torch.cuda.is_available():
-            model = model.eval().cuda().to(torch.bfloat16)
-        else:
-            model = model.eval()
+        if not torch.cuda.is_available():
+            raise RuntimeError("DeepSeek-OCR with FlashAttention 2 requires a CUDA GPU runtime.")
+
+        model = model.to("cuda").eval()
 
         print("[INFO] DeepSeek-OCR model loaded successfully.")
 
