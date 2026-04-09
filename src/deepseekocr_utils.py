@@ -26,7 +26,7 @@ def load_deepseek_model():
             trust_remote_code=True,
             use_safetensors=True,
             torch_dtype=dtype,
-            _attn_implementation="sdpa"   # changed from flash_attention_2
+            attn_implementation="eager"
         )
 
         if torch.cuda.is_available():
