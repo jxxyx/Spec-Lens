@@ -19,18 +19,20 @@ def load_deepseek_model():
             trust_remote_code=True
         )
 
+        dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+
         model = AutoModel.from_pretrained(
             MODEL_NAME,
             trust_remote_code=True,
             use_safetensors=True,
-            _attn_implementation="flash_attention_2",
-            torch_dtype=torch.bfloat16
+            torch_dtype=dtype,
+            _attn_implementation="sdpa"   # changed from flash_attention_2
         )
 
-        if not torch.cuda.is_available():
-            raise RuntimeError("DeepSeek-OCR with FlashAttention 2 requires a CUDA GPU runtime.")
+        if torch.cuda.is_available():
+            model = model.to("cuda")
 
-        model = model.to("cuda").eval()
+        model = model.eval()
 
         print("[INFO] DeepSeek-OCR model loaded successfully.")
 
@@ -38,14 +40,9 @@ def load_deepseek_model():
 
 
 def extract_text_deepseek(image_path: str):
-    """
-    Run DeepSeek-OCR on a single image and return output
-    in a structure compatible with the existing pipeline.
-    """
     tokenizer, model = load_deepseek_model()
 
     image_file = str(Path(image_path))
-
     output_dir = "/content/deepseek_outputs"
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -64,13 +61,9 @@ def extract_text_deepseek(image_path: str):
             test_compress=True
         )
 
-    extracted_text = str(response).strip()
-
-    return [
-        {
-            "bbox": None,
-            "text": extracted_text,
-            "confidence": 1.0,
-            "is_low_confidence": False
-        }
-    ]
+    return [{
+        "bbox": None,
+        "text": str(response).strip(),
+        "confidence": 1.0,
+        "is_low_confidence": False
+    }]
