@@ -1,5 +1,4 @@
 from pathlib import Path
-from PIL import Image
 import torch
 from transformers import AutoModel, AutoTokenizer
 
@@ -24,13 +23,13 @@ def load_deepseek_model():
             MODEL_NAME,
             trust_remote_code=True,
             use_safetensors=True,
-            torch_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32
+            _attn_implementation="flash_attention_2"
         )
 
         if torch.cuda.is_available():
-            model = model.cuda()
-
-        model = model.eval()
+            model = model.eval().cuda().to(torch.bfloat16)
+        else:
+            model = model.eval()
 
         print("[INFO] DeepSeek-OCR model loaded successfully.")
 
@@ -46,19 +45,22 @@ def extract_text_deepseek(image_path: str):
 
     image_file = str(Path(image_path))
 
-    # Plain OCR prompt
-    prompt = "<image>\nExtract all readable text from this image."
-
-    # IMPORTANT: output_path must be a real path, not None
     output_dir = "/content/deepseek_outputs"
     Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    prompt = "<image>\nFree OCR."
 
     with torch.no_grad():
         response = model.infer(
             tokenizer,
             prompt=prompt,
             image_file=image_file,
-            output_path=output_dir
+            output_path=output_dir,
+            base_size=1024,
+            image_size=640,
+            crop_mode=True,
+            save_results=True,
+            test_compress=True
         )
 
     extracted_text = str(response).strip()
