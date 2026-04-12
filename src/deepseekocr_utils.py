@@ -1,6 +1,7 @@
 from pathlib import Path
 import torch
 from transformers import AutoModel, AutoTokenizer
+from src.utils.deepseek_patch import patch_deepseek
 
 MODEL_NAME = "deepseek-ai/DeepSeek-OCR"
 
@@ -35,6 +36,8 @@ def load_deepseek_model():
         model = model.eval()
 
         print("[INFO] DeepSeek-OCR model loaded successfully.")
+
+        patch_deepseek()
 
     return tokenizer, model
 
