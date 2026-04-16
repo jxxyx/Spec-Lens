@@ -1,5 +1,3 @@
-# This script handles video input and transforms it into frames
-
 import cv2
 import shutil
 from pathlib import Path
@@ -9,73 +7,66 @@ def extract_frames(
     video_path: str,
     output_folder: str,
     interval: int = 30,
-    clear_existing: bool = True
-):
+    clear_existing: bool = True,
+) -> list[dict]:
     """
-    Extract frames from a video at a fixed interval.
+    Extract frames from a video at a fixed frame interval.
 
     Args:
-        video_path (str): Path to the input video file.
-        output_folder (str): Folder where extracted frames will be saved.
-        interval (int): Save 1 frame every 'interval' frames.
-        clear_existing (bool): If True, delete existing output folder contents first.
+        video_path (str):      Path to the input video file.
+        output_folder (str):   Folder where extracted frames will be saved.
+        interval (int):        Save 1 frame every N frames (must be >= 1).
+        clear_existing (bool): If True, delete existing output folder before running.
 
     Returns:
-        list[str]: List of saved frame file paths.
+        list[dict]: One entry per saved frame with keys:
+                    - "path"        (str)   absolute path to the saved JPEG
+                    - "frame_index" (int)   the original frame number in the video
+                    - "timestamp_s" (float) timestamp in seconds at the video's FPS
     """
+    if interval < 1:
+        raise ValueError(f"interval must be >= 1, got {interval}")
 
-    # Convert folder string into a Path object
+    input_path = Path(video_path)
+    if not input_path.exists():
+        raise FileNotFoundError(f"Video file not found: {video_path}")
+
     output_path = Path(output_folder)
 
-    # Clear old frames if requested
     if clear_existing and output_path.exists():
         shutil.rmtree(output_path)
         print(f"[INFO] Cleared existing frames in: {output_folder}")
 
-    # Recreate output folder
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Open the video file
-    cap = cv2.VideoCapture(video_path)
-
-    # Check if the video opened successfully
+    cap = cv2.VideoCapture(str(input_path))
     if not cap.isOpened():
-        raise FileNotFoundError(f"Could not open video file: {video_path}")
+        raise RuntimeError(f"OpenCV could not open video: {video_path}")
 
-    # Validate interval
-    if interval <= 0:
-        cap.release()
-        raise ValueError("Interval must be greater than 0.")
+    fps = cap.get(cv2.CAP_PROP_FPS) or 1.0  # fallback to 1 if FPS metadata missing
 
-    frame_count = 0      # total frames read
-    saved_count = 0      # total frames saved
-    saved_frames = []    # list of saved frame paths
+    frame_index = 0
+    saved_count = 0
+    saved_frames = []
 
-    # Read video frame by frame
     while True:
         success, frame = cap.read()
-
-        # Stop if video ends
         if not success:
             break
 
-        # Save every X frames
-        if frame_count % interval == 0:
-            frame_file = output_path / f"frame_{saved_count}.jpg"
-
-            # Save frame to disk
+        if frame_index % interval == 0:
+            frame_file = output_path / f"frame_{saved_count:05d}.jpg"
             cv2.imwrite(str(frame_file), frame)
-
-            # Store path for later pipeline use
-            saved_frames.append(str(frame_file))
+            saved_frames.append({
+                "path": str(frame_file),
+                "frame_index": frame_index,
+                "timestamp_s": round(frame_index / fps, 3),
+            })
             saved_count += 1
 
-        frame_count += 1
+        frame_index += 1
 
-    # Release video memory
     cap.release()
 
-    print(f"[INFO] Total frames read: {frame_count}")
-    print(f"[INFO] Total frames saved: {saved_count}")
-
+    print(f"[INFO] Frames read: {frame_index} | Frames saved: {saved_count}")
     return saved_frames
