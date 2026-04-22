@@ -44,7 +44,7 @@ class DeepSeekOCREngine:
         modeling file, it loads the already-patched version.
         """
         print("[INFO] Downloading DeepSeek-OCR model files (no import yet)...")
-        snapshot_download(MODEL_NAME, trust_remote_code=False)
+        snapshot_download(MODEL_NAME)
         print("[INFO] Download complete. Applying patch to cached files...")
         patch_deepseek()
         print(
