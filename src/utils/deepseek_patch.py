@@ -22,39 +22,63 @@ _REPLACEMENT = (
 )
 
 
-def patch_deepseek() -> None:
+def patch_deepseek(base_path: str | None = None) -> None:
     """
-    Patch the cached DeepSeek-OCR modeling file to fix a device/dtype mismatch
+    Patch the DeepSeek-OCR modeling file to fix a device/dtype mismatch
     in the upstream masked_scatter_ call.
 
     The patch injects explicit .to(device=...) and .to(dtype=...) calls so that
-    the mask and source tensors are on the same device as inputs_embeds before
-    the scatter operation runs.  Without this, CUDA float16 inference raises a
-    RuntimeError on a fresh HuggingFace cache.
+    the mask and source tensors are on the same device/dtype as inputs_embeds
+    before the scatter operation runs.
+
+    Args:
+        base_path (str | None):
+            Root folder to search for modeling_deepseekocr.py.
+            - If provided, search there first (recommended: pass snapshot_download() path)
+            - If None, fall back to the transformers_modules cache path
 
     This function is idempotent — calling it multiple times on an already-patched
     file is safe and produces no changes.
-
-    Must be called AFTER snapshot_download() (so the files exist on disk) but
-    BEFORE AutoModel.from_pretrained() with trust_remote_code=True (so the
-    imported remote code is the patched version).
     """
-    base = Path(
-        "/root/.cache/huggingface/modules/transformers_modules"
-        "/deepseek-ai/DeepSeek-OCR"
-    )
-    targets = list(base.rglob("modeling_deepseekocr.py"))
 
-    if not targets:
+    search_roots = []
+
+    if base_path is not None:
+        search_roots.append(Path(base_path))
+
+    # Fallback path used by trust_remote_code imports
+    search_roots.append(
+        Path("/root/.cache/huggingface/modules/transformers_modules/deepseek-ai/DeepSeek-OCR")
+    )
+
+    targets = []
+    searched = []
+
+    for root in search_roots:
+        searched.append(str(root))
+        if root.exists():
+            found = list(root.rglob("modeling_deepseekocr.py"))
+            if found:
+                targets.extend(found)
+
+    # Remove duplicates while preserving order
+    unique_targets = []
+    seen = set()
+    for path in targets:
+        resolved = str(path.resolve())
+        if resolved not in seen:
+            seen.add(resolved)
+            unique_targets.append(path)
+
+    if not unique_targets:
         print(
-            "[WARNING] patch_deepseek: no modeling_deepseekocr.py found under\n"
-            f"          {base}\n"
-            "          Has snapshot_download() been called yet?"
+            "[WARNING] patch_deepseek: no modeling_deepseekocr.py found under:\n"
+            + "\n".join(f"  - {p}" for p in searched)
         )
         return
 
-    for path in targets:
-        text = path.read_text()
+    for path in unique_targets:
+        text = path.read_text(encoding="utf-8")
 
         # Idempotency check — skip files that carry the sentinel from a prior run
         if _PATCH_SENTINEL in text:
@@ -64,7 +88,7 @@ def patch_deepseek() -> None:
         new_text, count = re.subn(_PATTERN, _REPLACEMENT, text, flags=re.VERBOSE)
 
         if count > 0:
-            path.write_text(new_text)
+            path.write_text(new_text, encoding="utf-8")
             print(f"[PATCH] Patched successfully: {path}")
         else:
             print(

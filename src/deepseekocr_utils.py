@@ -44,9 +44,10 @@ class DeepSeekOCREngine:
         modeling file, it loads the already-patched version.
         """
         print("[INFO] Downloading DeepSeek-OCR model files (no import yet)...")
-        snapshot_download(MODEL_NAME)
-        print("[INFO] Download complete. Applying patch to cached files...")
-        patch_deepseek()
+        snapshot_path = snapshot_download(MODEL_NAME)
+        print(f"[INFO] Download complete at: {snapshot_path}")
+        print("[INFO] Applying patch to downloaded files...")
+        patch_deepseek(base_path=snapshot_path)
         print(
             "[INFO] Patch applied.\n"
             "[ACTION] Restart the Colab runtime now, then run your inference cell."
