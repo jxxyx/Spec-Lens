@@ -182,6 +182,15 @@ class DeepSeekOCREngine:
 
         print(f"[WARNING] DeepSeek produced no usable OCR text for {image_path}.")
         return []
+    
+    def unload(self) -> None:
+        import gc
+        self._model = None
+        self._tokenizer = None
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        print("[INFO] DeepSeek-OCR model unloaded and VRAM freed.")
 
 
 # Module-level singleton — shared across the pipeline so weights load once only.
