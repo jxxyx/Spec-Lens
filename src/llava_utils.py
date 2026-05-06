@@ -9,29 +9,31 @@ MODEL_NAME = "llava-hf/llava-v1.6-mistral-7b-hf"
 # The image is passed directly to LLaVA alongside this text prompt.
 # cleaned_text (OCR output) is injected as additional grounding context so the
 # model can reconcile what it sees with what OCR already extracted.
-_PROMPT_TEMPLATE = """You are an expert Business Analyst reviewing a UI screenshot.
+_PROMPT_TEMPLATE = """You are a Business Analyst writing documentation for ONE specific screen.
 
-The following text was extracted from this screen via OCR:
+STRICT RULES — you must follow these exactly:
+- Only describe UI elements and actions that are LITERALLY VISIBLE in this screenshot.
+- Do NOT invent features, buttons, or behaviours that are not shown on screen.
+- Do NOT write generic banking requirements. Be specific to THIS screen only.
+- Keep Acceptance Criteria to 3-5 steps maximum, covering only what is visible.
+- Each section must end before the next numbered heading begins.
+
+OCR text extracted from this screen:
 {ocr_text}
 
-Based on the screenshot and the extracted text above, generate the following:
+Now produce exactly three sections using these headings:
 
 1. USER STORY
-   Format: As a [user], I want to [action], so that [benefit].
+As a [specific user type visible on screen], I want to [specific action shown on screen], so that [direct benefit of this screen].
 
-2. ACCEPTANCE CRITERIA (Gherkin)
-   Format:
-   Given [precondition]
-   When [action]
-   Then [expected result]
-   (Add more Given/When/Then steps if needed)
+2. ACCEPTANCE CRITERIA
+Given [the specific screen state shown]
+When [a specific action on a visible element]
+Then [the direct visible outcome]
+(Maximum 5 Given/When/Then blocks. Only cover what is on screen.)
 
 3. GAP ANALYSIS
-   List any UI elements, validation rules, edge cases, or system behaviours
-   that are visible or implied but NOT captured in the user story above.
-
-Be specific to what is visible in the screenshot. Do not invent fields or
-behaviours that are not present or reasonably implied."""
+List only: (a) visible UI elements not covered by the user story, (b) missing validation that a BA would flag for THIS screen, (c) unclear or ambiguous elements actually visible. Maximum 5 bullet points. Do not pad with generic banking features."""
 
 
 class LLaVAEngine:
@@ -179,12 +181,13 @@ class LLaVAEngine:
 
 def _parse_response(text: str) -> dict:
     """
-    Parse the model's free-text output into structured fields.
+    Parse LLaVA's free-text output into structured BA fields.
 
-    Looks for numbered section headers:
-    1. USER STORY
-    2. ACCEPTANCE CRITERIA
-    3. GAP ANALYSIS
+    Handles:
+    - Numbered headers:  1. USER STORY
+    - Bold markdown:     **1. USER STORY**
+    - Missing sections:  gracefully returns empty string
+    - Fallback:          full text goes into user_story if no headers found
     """
     sections = {
         "user_story": "",
@@ -192,24 +195,35 @@ def _parse_response(text: str) -> dict:
         "gap_analysis": "",
     }
 
-    parts = re.split(
-        r"\n?\s*\d+\.\s+(?:USER STORY|ACCEPTANCE CRITERIA|GAP ANALYSIS)\s*\n",
-        text,
-        flags=re.IGNORECASE,
+    # Pattern matches: optional **, digit, dot, section name, optional **
+    # e.g. "1. USER STORY", "**2. ACCEPTANCE CRITERIA**", "3. Gap Analysis"
+    header_pattern = re.compile(
+        r"\*{0,2}\s*\d+\.\s*"
+        r"(USER STORY|ACCEPTANCE CRITERIA(?:\s*\(Gherkin\))?|GAP ANALYSIS)"
+        r"\s*\*{0,2}",
+        re.IGNORECASE,
     )
 
-    if len(parts) >= 2:
-        sections["user_story"] = parts[1].strip()
+    # Find all section headers and their positions
+    matches = list(header_pattern.finditer(text))
 
-    if len(parts) >= 3:
-        sections["acceptance_criteria"] = parts[2].strip()
-
-    if len(parts) >= 4:
-        sections["gap_analysis"] = parts[3].strip()
-
-    # Fallback: keep full output
-    if not any(sections.values()):
+    if not matches:
+        # No structured headers found — put everything in user_story as fallback
         sections["user_story"] = text.strip()
+        return sections
+
+    for i, match in enumerate(matches):
+        section_name = match.group(1).upper().split("(")[0].strip()  # normalise
+        start = match.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        content = text[start:end].strip()
+
+        if "USER STORY" in section_name:
+            sections["user_story"] = content
+        elif "ACCEPTANCE CRITERIA" in section_name:
+            sections["acceptance_criteria"] = content
+        elif "GAP ANALYSIS" in section_name:
+            sections["gap_analysis"] = content
 
     return sections
 
