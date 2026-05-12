@@ -25,10 +25,12 @@ def run_reasoning(
     Returns:
         list[dict]: Per-frame reasoning results, each containing:
                     - "frame"                original frame metadata dict
-                    - "cleaned_text"         OCR text that was passed to LLaVA
-                    - "user_story"           generated user story
-                    - "acceptance_criteria"  generated Gherkin criteria
-                    - "gap_analysis"         generated gap analysis
+                    - "cleaned_text"         OCR text passed to LLaVA
+                    - "screen_summary"       2–3 sentence screen description
+                    - "user_stories"         list[dict] — title, story, scenario per US
+                    - "acceptance_criteria"  consolidated Gherkin block (str)
+                    - "gap_analysis"         categorised gap bullet list (str)
+                    - "truncated"            True if model hit token limit mid-response
                     - "raw_response"         full unstructured model output
                     - "error"                error string if reasoning failed, else None
     """
@@ -66,9 +68,11 @@ def run_reasoning(
         except Exception as exc:
             print(f"[WARNING] Reasoning failed on {frame['path']}: {exc}")
             artefacts = {
-                "user_story": "",
+                "screen_summary": "",
+                "user_stories": [],
                 "acceptance_criteria": "",
                 "gap_analysis": "",
+                "truncated": False,
                 "raw_response": "",
                 "image_path": frame["path"],
             }

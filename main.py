@@ -183,9 +183,19 @@ if RUN_REASONING:
             print(f"  [ERROR] {result['error']}")
             continue
 
-        print(f"  USER STORY:\n    {result['user_story']}")
-        print(f"  ACCEPTANCE CRITERIA:\n    {result['acceptance_criteria']}")
-        print(f"  GAP ANALYSIS:\n    {result['gap_analysis']}")
+        if result.get("truncated"):
+            print("  [WARNING] Response was truncated — token budget exceeded.")
+
+        print(f"\n  SCREEN SUMMARY:\n    {result['screen_summary']}")
+
+        for us in result.get("user_stories", []):
+            print(f"\n  ── {us['title']} ──")
+            print(f"    {us['story']}")
+            if us.get("scenario"):
+                print(f"    {us['scenario']}")
+
+        print(f"\n  ACCEPTANCE CRITERIA:\n    {result['acceptance_criteria']}")
+        print(f"\n  GAP ANALYSIS:\n    {result['gap_analysis']}")
 
     # Save full reasoning results to Drive
     reasoning_output_path = f"{DRIVE_BASE}/reasoning_results_full.json"

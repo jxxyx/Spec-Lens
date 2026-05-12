@@ -9,31 +9,103 @@ MODEL_NAME = "llava-hf/llava-v1.6-mistral-7b-hf"
 # The image is passed directly to LLaVA alongside this text prompt.
 # cleaned_text (OCR output) is injected as additional grounding context so the
 # model can reconcile what it sees with what OCR already extracted.
-_PROMPT_TEMPLATE = """You are a Business Analyst writing documentation for ONE specific screen.
-
-STRICT RULES — you must follow these exactly:
-- Only describe UI elements and actions that are LITERALLY VISIBLE in this screenshot.
-- Do NOT invent features, buttons, or behaviours that are not shown on screen.
-- Do NOT write generic banking requirements. Be specific to THIS screen only.
-- Keep Acceptance Criteria to 3-5 steps maximum, covering only what is visible.
-- Each section must end before the next numbered heading begins.
+_PROMPT_TEMPLATE = """You are a Senior Business Analyst documenting a mobile banking UI screen.
 
 OCR text extracted from this screen:
 {ocr_text}
 
-Now produce exactly three sections using these headings:
+Your job is to produce structured Business Analysis (BA) documentation for every distinct business capability or user goal visible on this screen.
+Use the ROCSTAR framework for each user story:
+- Role
+- Objective
+- Context
+- Scenario
+- Trigger
+- Action
+- Result
 
-1. USER STORY
-As a [specific user type visible on screen], I want to [specific action shown on screen], so that [direct benefit of this screen].
+STRICT RULES:
+- Only document what is explicitly visible in the screenshot and OCR text.
+- Do NOT invent hidden functionality, backend logic, or UI elements not shown.
+- Generate one user story for each distinct business capability or user goal.
+- Group related UI elements under the same user story when they support the same objective.
+- Identify as many user stories as the screen warrants — typically 3–7 for a banking home screen, but follow the evidence.
+- If behaviour is inferred but not directly visible, include it under "Assumptions" and assign a lower confidence level.
+- Each user story must include its own inline Gherkin scenario.
+- The ACCEPTANCE CRITERIA section must consolidate all Gherkin scenarios from all user stories.
+- GAP ANALYSIS must identify missing behaviour, validation rules, ambiguous labels, accessibility issues, and assumptions requiring confirmation.
+- Every statement must be traceable to visible evidence in the screenshot or OCR text.
+- Clearly separate confirmed observations from assumptions throughout.
 
-2. ACCEPTANCE CRITERIA
-Given [the specific screen state shown]
-When [a specific action on a visible element]
-Then [the direct visible outcome]
-(Maximum 5 Given/When/Then blocks. Only cover what is on screen.)
+OUTPUT FORMAT (follow exactly):
 
-3. GAP ANALYSIS
-List only: (a) visible UI elements not covered by the user story, (b) missing validation that a BA would flag for THIS screen, (c) unclear or ambiguous elements actually visible. Maximum 5 bullet points. Do not pad with generic banking features."""
+SCREEN SUMMARY
+[2–3 sentences describing: the likely screen name, the intended user, and the primary purpose of the screen in the application flow]
+
+USER STORIES
+
+US-1: [Short Title]
+Priority: [Primary | Secondary | Informational]
+Confidence: [High | Medium | Low]
+Role: [User role]
+Objective: [What the user wants to achieve]
+Context: [Where this occurs in the business process]
+Result: [Expected business outcome]
+User Story:
+As a [Role],
+I want to [Objective],
+In the context of [Context],
+So that [Result].
+Trigger: [What causes the user to perform this action]
+Action: [What the user physically does on screen]
+Evidence:
+- [Visible UI elements, labels, buttons, or OCR text that support this story]
+Assumptions:
+- [Any inferred behaviour not directly visible. Write "None" if no assumptions were made]
+
+Scenario: [Scenario Name]
+Given [precondition visible or reasonably implied]
+When [trigger/action]
+Then [expected visible result]
+
+US-2: [Short Title]
+[Repeat the exact same structure]
+
+[Continue for all distinct user goals visible on the screen]
+
+ACCEPTANCE CRITERIA
+
+Scenario: [Scenario Name from US-1]
+Given ...
+When ...
+Then ...
+
+Scenario: [Scenario Name from US-2]
+Given ...
+When ...
+Then ...
+
+[Continue for all scenarios from all user stories]
+
+GAP ANALYSIS
+
+Missing Behaviour
+- [Visible UI elements with no clearly defined behaviour]
+
+Validation Rules Not Defined
+- [Missing input checks, constraints, or business validations]
+
+Assumptions Requiring Confirmation
+- [Inferred logic or behaviour that should be validated with stakeholders]
+
+Ambiguous Labels or Icons
+- [Labels or icons whose purpose is unclear]
+
+Accessibility Concerns
+- [Potential issues with readability, contrast, icon-only controls, or missing text labels]
+
+Implied Business Rules
+- [Rules suggested by the UI but not explicitly stated]"""
 
 
 class LLaVAEngine:
@@ -89,7 +161,7 @@ class LLaVAEngine:
         self,
         image_path: str,
         cleaned_text: list[str],
-        max_new_tokens: int = 512,
+        max_new_tokens: int = 1024,
     ) -> dict:
         """
         Run LLaVA over one frame and return structured BA artefacts.
@@ -98,14 +170,18 @@ class LLaVAEngine:
             image_path (str): Path to the frame JPEG.
             cleaned_text (list[str]): OCR-cleaned text strings.
             max_new_tokens (int): Token budget for the generated response.
+                                  1024 is required for the full ROCSTAR output
+                                  (6+ user stories + AC + GAP can exceed 900 tokens).
 
         Returns:
             dict with keys:
-                "user_story"
-                "acceptance_criteria"
-                "gap_analysis"
-                "raw_response"
-                "image_path"
+                "screen_summary"        — str
+                "user_stories"          — list[dict] with title, story, scenario
+                "acceptance_criteria"   — str (consolidated Gherkin block)
+                "gap_analysis"          — str (categorised bullet list)
+                "truncated"             — bool (True if response was cut off)
+                "raw_response"          — str
+                "image_path"            — str
         """
         self._load()
 
@@ -181,51 +257,100 @@ class LLaVAEngine:
 
 def _parse_response(text: str) -> dict:
     """
-    Parse LLaVA's free-text output into structured BA fields.
+    Parse LLaVA's ROCSTAR-structured output into typed fields.
 
-    Handles:
-    - Numbered headers:  1. USER STORY
-    - Bold markdown:     **1. USER STORY**
-    - Missing sections:  gracefully returns empty string
-    - Fallback:          full text goes into user_story if no headers found
+    Top-level sections detected (case-insensitive, optional bold markdown):
+        SCREEN SUMMARY
+        USER STORIES
+        ACCEPTANCE CRITERIA
+        GAP ANALYSIS
+
+    Within USER STORIES, each US-N block is parsed into:
+        title     — short title from the US-N: header
+        story     — ROCSTAR fields (Role, Objective, ... Action, Evidence, Assumptions)
+        scenario  — Gherkin block (Given/When/Then)
+
+    Truncation is flagged when both acceptance_criteria and gap_analysis are
+    empty — indicating the model ran out of token budget before finishing.
+
+    Falls back gracefully if headers are missing or malformed.
     """
-    sections = {
-        "user_story": "",
+    result = {
+        "screen_summary": "",
+        "user_stories": [],
         "acceptance_criteria": "",
         "gap_analysis": "",
+        "truncated": False,
     }
 
-    # Pattern matches: optional **, digit, dot, section name, optional **
-    # e.g. "1. USER STORY", "**2. ACCEPTANCE CRITERIA**", "3. Gap Analysis"
-    header_pattern = re.compile(
-        r"\*{0,2}\s*\d+\.\s*"
-        r"(USER STORY|ACCEPTANCE CRITERIA(?:\s*\(Gherkin\))?|GAP ANALYSIS)"
-        r"\s*\*{0,2}",
+    # ── 1. Split into top-level sections ──────────────────────────────────────
+    section_pattern = re.compile(
+        r"\*{0,2}\s*(SCREEN SUMMARY|USER STORIES|ACCEPTANCE CRITERIA|GAP ANALYSIS)\s*\*{0,2}",
         re.IGNORECASE,
     )
 
-    # Find all section headers and their positions
-    matches = list(header_pattern.finditer(text))
+    matches = list(section_pattern.finditer(text))
 
     if not matches:
-        # No structured headers found — put everything in user_story as fallback
-        sections["user_story"] = text.strip()
-        return sections
+        # No structure found — store everything as screen_summary fallback
+        result["screen_summary"] = text.strip()
+        result["truncated"] = True
+        return result
 
-    for i, match in enumerate(matches):
-        section_name = match.group(1).upper().split("(")[0].strip()  # normalise
-        start = match.end()
+    sections = {}
+    for i, m in enumerate(matches):
+        key = m.group(1).upper()
+        start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-        content = text[start:end].strip()
+        sections[key] = text[start:end].strip()
 
-        if "USER STORY" in section_name:
-            sections["user_story"] = content
-        elif "ACCEPTANCE CRITERIA" in section_name:
-            sections["acceptance_criteria"] = content
-        elif "GAP ANALYSIS" in section_name:
-            sections["gap_analysis"] = content
+    result["screen_summary"]      = sections.get("SCREEN SUMMARY", "")
+    result["acceptance_criteria"] = sections.get("ACCEPTANCE CRITERIA", "")
+    result["gap_analysis"]        = sections.get("GAP ANALYSIS", "")
 
-    return sections
+    # ── 2. Parse individual user stories ──────────────────────────────────────
+    us_block = sections.get("USER STORIES", "")
+
+    if us_block:
+        # Split on "US-N: Title" headers (optional bold, flexible spacing)
+        us_parts = re.split(
+            r"\*{0,2}\s*US-\d+\s*:\s*([^\n*]+)\*{0,2}",
+            us_block,
+        )
+        # Pattern: [pre-text, title1, body1, title2, body2, ...]
+        i = 1
+        while i < len(us_parts) - 1:
+            title = us_parts[i].strip()
+            body  = us_parts[i + 1].strip() if i + 1 < len(us_parts) else ""
+
+            # Split body at the Scenario block
+            scenario_match = re.search(
+                r"(Scenario\s*:.*)",
+                body,
+                re.IGNORECASE | re.DOTALL,
+            )
+
+            if scenario_match:
+                story_text    = body[: scenario_match.start()].strip()
+                scenario_text = scenario_match.group(1).strip()
+            else:
+                story_text    = body.strip()
+                scenario_text = ""
+
+            result["user_stories"].append({
+                "title":    title,
+                "story":    story_text,
+                "scenario": scenario_text,
+            })
+
+            i += 2
+
+    # ── 3. Truncation detection ────────────────────────────────────────────────
+    # If both AC and GAP are empty the model almost certainly ran out of tokens.
+    if not result["acceptance_criteria"] and not result["gap_analysis"]:
+        result["truncated"] = True
+
+    return result
 
 
 # Singleton instance
