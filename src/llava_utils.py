@@ -9,12 +9,13 @@ MODEL_NAME = "llava-hf/llava-v1.6-mistral-7b-hf"
 # The image is passed directly to LLaVA alongside this text prompt.
 # cleaned_text (OCR output) is injected as additional grounding context so the
 # model can reconcile what it sees with what OCR already extracted.
-_PROMPT_TEMPLATE = """You are a Senior Business Analyst documenting a mobile banking UI screen.
+_PROMPT_TEMPLATE = """You are a Senior Business Analyst documenting ONE mobile banking UI screen.
 
 OCR text extracted from this screen:
 {ocr_text}
 
-Your job is to produce structured Business Analysis (BA) documentation for every distinct business capability or user goal visible on this screen.
+Your job is to produce structured Business Analysis (BA) documentation for each distinct business capability or user goal that is directly visible on this screen.
+
 Use the ROCSTAR framework for each user story:
 - Role
 - Objective
@@ -26,49 +27,71 @@ Use the ROCSTAR framework for each user story:
 
 STRICT RULES:
 - Only document what is explicitly visible in the screenshot and OCR text.
-- Do NOT invent hidden functionality, backend logic, or UI elements not shown.
-- Generate one user story for each distinct business capability or user goal.
+- Do NOT invent hidden functionality, backend logic, future screens, workflows, validations, or UI elements that are not shown.
+- Do NOT mention missing features unless the visible screen creates a clear ambiguity.
+- Do NOT speculate about downstream screens, backend validations, payee management, authentication, transaction filtering, reporting, downloads, sorting, searching, or transaction details unless those elements are visibly shown.
+- Generate one user story for each distinct visible business capability or user goal.
 - Group related UI elements under the same user story when they support the same objective.
-- Identify as many user stories as the screen warrants — typically 3–7 for a banking home screen, but follow the evidence.
-- If behaviour is inferred but not directly visible, include it under "Assumptions" and assign a lower confidence level.
-- Each user story must include its own inline Gherkin scenario.
-- The ACCEPTANCE CRITERIA section must consolidate all Gherkin scenarios from all user stories.
-- GAP ANALYSIS must identify missing behaviour, validation rules, ambiguous labels, accessibility issues, and assumptions requiring confirmation.
+- Identify as many user stories as the screen warrants, based solely on visible evidence.
+- If behaviour is inferred but not directly visible, record it under "Assumptions" and assign a Medium or Low confidence level.
+- Every user story must include visible Evidence.
 - Every statement must be traceable to visible evidence in the screenshot or OCR text.
-- Clearly separate confirmed observations from assumptions throughout.
+- Clearly separate confirmed observations from assumptions.
+- Use concise, factual language.
+- If a category has no grounded findings, write: "None identified from this screen."
+
+IMPORTANT OUTPUT RULES:
+- Describe only what can be observed on this screen.
+- Do NOT describe what happens after a user taps a button unless the next screen is shown.
+- For example, write:
+  "Then the Transfer option is available for selection."
+  NOT:
+  "Then the user is prompted to enter transfer details."
 
 OUTPUT FORMAT (follow exactly):
 
 SCREEN SUMMARY
-[2–3 sentences describing: the likely screen name, the intended user, and the primary purpose of the screen in the application flow]
+[2–3 sentences based only on what is visible on this screen. Describe:
+- the likely screen name,
+- the intended user,
+- and the primary purpose of this screen.
+Do not infer app-wide context or downstream processes.]
 
 USER STORIES
 
 US-1: [Short Title]
+
 Priority: [Primary | Secondary | Informational]
 Confidence: [High | Medium | Low]
+
 Role: [User role]
 Objective: [What the user wants to achieve]
-Context: [Where this occurs in the business process]
-Result: [Expected business outcome]
+Context: [Where this occurs in the visible user journey]
+Result: [Expected business outcome visible or reasonably implied]
+
 User Story:
 As a [Role],
 I want to [Objective],
 In the context of [Context],
 So that [Result].
+
 Trigger: [What causes the user to perform this action]
-Action: [What the user physically does on screen]
+Action: [What the user physically does on this screen]
+
 Evidence:
-- [Visible UI elements, labels, buttons, or OCR text that support this story]
+- [Visible UI elements, labels, buttons, values, or OCR text that support this story]
+
 Assumptions:
-- [Any inferred behaviour not directly visible. Write "None" if no assumptions were made]
+- [Any inferred behaviour not directly visible]
+- [Write "None" if no assumptions were made]
 
 Scenario: [Scenario Name]
 Given [precondition visible or reasonably implied]
 When [trigger/action]
-Then [expected visible result]
+Then [expected visible result on this screen]
 
 US-2: [Short Title]
+
 [Repeat the exact same structure]
 
 [Continue for all distinct user goals visible on the screen]
@@ -90,23 +113,29 @@ Then ...
 GAP ANALYSIS
 
 Missing Behaviour
-- [Visible UI elements with no clearly defined behaviour]
+- Gap: [Visible UI element whose behaviour is unclear, or "None identified from this screen."]
+  Evidence: [Visible UI element or OCR text]
 
 Validation Rules Not Defined
-- [Missing input checks, constraints, or business validations]
+- Gap: [Only if a visible input field or form requires validation; otherwise "None identified from this screen."]
+  Evidence: [Visible input field or action]
 
 Assumptions Requiring Confirmation
-- [Inferred logic or behaviour that should be validated with stakeholders]
+- Gap: [Only assumptions explicitly listed in the user stories above, or "None identified from this screen."]
+  Evidence: [Related user story or visible UI element]
 
 Ambiguous Labels or Icons
-- [Labels or icons whose purpose is unclear]
+- Gap: [Only labels or icons whose meaning is unclear, or "None identified from this screen."]
+  Evidence: [Visible label or icon]
 
 Accessibility Concerns
-- [Potential issues with readability, contrast, icon-only controls, or missing text labels]
+- Gap: [Only observable accessibility concerns, or "None identified from this screen."]
+  Evidence: [Visible UI/text/icon]
 
 Implied Business Rules
-- [Rules suggested by the UI but not explicitly stated]"""
-
+- Gap: [Only business rules directly suggested by visible values or text, or "None identified from this screen."]
+  Evidence: [Visible value, label, or OCR text]
+"""
 
 class LLaVAEngine:
     """
