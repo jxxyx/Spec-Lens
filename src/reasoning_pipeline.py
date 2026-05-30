@@ -1,6 +1,7 @@
 from pathlib import Path
 from src.llava_utils import analyse_frame
 from src.io_utils import save_json, load_json, file_exists
+from src.frame_utils import filter_unique_frames
 
 
 def run_reasoning(
@@ -40,7 +41,23 @@ def run_reasoning(
     total = len(ocr_results)
     skipped_ocr_errors = 0
 
-    for idx, frame_result in enumerate(ocr_results):
+    # Step 1 - extract flat frame dicts for duplicate detection
+    frame_dicts = [item["frame"] for item in ocr_results]
+
+    # Step 2 - filter duplicates
+    unique_frames = filter_unique_frames(frame_dicts)
+
+    # Step 3 - build lookup and match back to full ocr_result entries
+    lookup = {item["frame"]["frame_index"]: item for item in ocr_results}
+    unique_ocr_results = [lookup[frame["frame_index"]] for frame in unique_frames]
+
+    # Step 4 - log how many were deduplicated
+    print(f"[DEDUP] {len(ocr_results)} frames → {len(unique_ocr_results)} unique frames")
+
+    # Store summaries of previous unique screens for flow reasoning
+    context_window = []
+
+    for idx, frame_result in enumerate(unique_ocr_results):
         frame = frame_result["frame"]
         frame_name = Path(frame["path"]).stem
         checkpoint_file = f"{checkpoint_folder}/{frame_name}.json"
@@ -63,6 +80,7 @@ def run_reasoning(
             artefacts = analyse_frame(
                 image_path=frame["path"],
                 cleaned_text=frame_result["cleaned_text"],
+                context_window=context_window,
             )
             error = None
         except Exception as exc:
@@ -77,6 +95,7 @@ def run_reasoning(
                 "image_path": frame["path"],
             }
             error = str(exc)
+        
 
         result = {
             "frame": frame,
@@ -89,6 +108,14 @@ def run_reasoning(
         if error is None:
             save_json(result, checkpoint_file)
 
+            # Add the current screen summary into workflow memory
+            if artefacts.get("screen_summary"):
+                context_window.append(artefacts["screen_summary"])
+
+                # Keep only the latest 5 screen summaries
+                context_window = context_window[-5:]
+
+
         all_artefacts.append(result)
 
     failed = sum(1 for r in all_artefacts if r.get("error"))
@@ -100,3 +127,4 @@ def run_reasoning(
     )
 
     return all_artefacts
+

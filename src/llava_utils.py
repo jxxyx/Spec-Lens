@@ -11,6 +11,7 @@ MODEL_NAME = "llava-hf/llava-v1.6-mistral-7b-hf"
 # model can reconcile what it sees with what OCR already extracted.
 _PROMPT_TEMPLATE = """You are a Senior Business Analyst documenting ONE mobile banking UI screen.
 
+{workflow_context}
 OCR text extracted from this screen:
 {ocr_text}
 
@@ -190,6 +191,7 @@ class LLaVAEngine:
         self,
         image_path: str,
         cleaned_text: list[str],
+        context_window: list[str] | None = None, 
         max_new_tokens: int = 1024,
     ) -> dict:
         """
@@ -216,7 +218,23 @@ class LLaVAEngine:
 
         image = Image.open(image_path).convert("RGB")
         ocr_text = "\n".join(cleaned_text) if cleaned_text else "(no OCR text extracted)"
-        prompt = _PROMPT_TEMPLATE.format(ocr_text=ocr_text)
+
+        # Build workflow context from previous screen summaries
+        workflow_context_text = ""
+
+        if context_window:
+            lines = [
+                f"- Screen {idx + 1}: {summary}"
+                for idx, summary in enumerate(context_window)
+            ]
+
+            workflow_context_text = (
+                "Prior screens in this workflow:\n"
+                + "\n".join(lines)
+            )
+
+
+        prompt = _PROMPT_TEMPLATE.format(ocr_text=ocr_text, workflow_context=workflow_context_text,)
 
         # LLaVA-Next conversation format
         conversation = [
@@ -239,7 +257,7 @@ class LLaVAEngine:
             return_tensors="pt",
         )
 
-        # ✅ FIX: Safe device handling for device_map="auto"
+        # FIX: Safe device handling for device_map="auto"
         if torch.cuda.is_available():
             inputs = {
                 k: v.to("cuda") if hasattr(v, "to") else v
@@ -386,7 +404,7 @@ def _parse_response(text: str) -> dict:
 engine = LLaVAEngine()
 
 
-def analyse_frame(image_path: str, cleaned_text: list[str]) -> dict:
+def analyse_frame(image_path: str, cleaned_text: list[str], context_window=None,) -> dict:
     """
     Public entry point for reasoning layer.
 
@@ -397,4 +415,4 @@ def analyse_frame(image_path: str, cleaned_text: list[str]) -> dict:
     Returns:
         dict of structured BA artefacts
     """
-    return engine.analyse(image_path, cleaned_text)
+    return engine.analyse(image_path, cleaned_text, context_window=context_window)
