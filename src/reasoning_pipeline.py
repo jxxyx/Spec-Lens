@@ -70,11 +70,15 @@ def run_reasoning(
 
         # Resume: load existing reasoning checkpoint if present
         if resume and file_exists(checkpoint_file):
-            print(f"[RESUME] Loaded reasoning checkpoint: {frame_name}")
-            all_artefacts.append(load_json(checkpoint_file))
+            loaded = load_json(checkpoint_file)
+            all_artefacts.append(loaded)
+            
+            # Update context window from resumed checkpoint
+            if loaded.get("screen_summary"):
+                context_window.append(loaded["screen_summary"])
+                context_window = context_window[-5:]
+            
             continue
-
-        print(f"[INFO] Reasoning frame {idx + 1}/{total}: {frame['path']}")
 
         try:
             artefacts = analyse_frame(
