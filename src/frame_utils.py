@@ -4,7 +4,7 @@ import numpy as np
 
 
 # Function to check for duplication of frames via pixel difference
-def is_duplicate(frame_path_A: str, frame_path_B: str, threshold: float = 10.0) -> bool:
+def is_duplicate(frame_path_A: str, frame_path_B: str, threshold: float = 3.0) -> bool:
 
     # Read the frames stored
     frame_A = cv2.imread(frame_path_A)
@@ -36,7 +36,7 @@ def is_duplicate(frame_path_A: str, frame_path_B: str, threshold: float = 10.0) 
     return False
 
 
-def filter_unique_frames(all_frames: list[dict], threshold: float = 10.0) -> list[dict]:
+def filter_unique_frames(all_frames: list[dict], threshold: float = 3.0) -> list[dict]:
 
     # Create an empty list to store only the unique frames
     unique_frames = []
