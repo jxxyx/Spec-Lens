@@ -37,6 +37,7 @@ STRICT RULES:
 - If behaviour is inferred but not directly visible, record it under "Assumptions" and assign a Medium or Low confidence level.
 - Every user story must include visible Evidence.
 - Every statement must be traceable to visible evidence in the screenshot or OCR text.
+- For each user story, you MUST output an assembled story sentence in this exact format: "As a [Role], I want to [Objective], In the context of [Context], So that [Result]". This sentence is mandatory and must appear in the "story" field.
 - Clearly separate confirmed observations from assumptions.
 - Use concise, factual language.
 - If a category has no grounded findings, write: "None identified from this screen."
@@ -69,6 +70,8 @@ Role: [User role]
 Objective: [What the user wants to achieve]
 Context: [Where this occurs in the visible user journey]
 Result: [Expected business outcome visible or reasonably implied]
+
+Do not omit the User Story block. Every user story must contain a completed User Story statement.
 
 User Story:
 As a [Role],
