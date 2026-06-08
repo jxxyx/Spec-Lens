@@ -73,11 +73,11 @@ Result: [Expected business outcome visible or reasonably implied]
 
 Do not omit the User Story block. Every user story must contain a completed User Story statement.
 
-User Story:
-As a [Role],
-I want to [Objective],
-In the context of [Context],
-So that [Result].
+User Story (As a/I want/So that):
+As a: [Role]
+I want to: [Objective]
+In the context of: [Context]
+So that: [Result]
 
 Trigger: [What causes the user to perform this action]
 Action: [What the user physically does on this screen]
