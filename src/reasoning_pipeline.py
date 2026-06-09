@@ -34,7 +34,7 @@ def ensure_user_story_blocks(artefacts: dict) -> dict:
         result = _extract_field(story_text, "Result")
 
         if role and objective and context and result:
-            user_story["story"] = (
+            user_story["assembled_story"] = (
                 f"As a {role}, "
                 f"I want to {objective}, "
                 f"In the context of {context}, "

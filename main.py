@@ -190,8 +190,16 @@ if RUN_REASONING:
 
         for us in result.get("user_stories", []):
             print(f"\n  ── {us['title']} ──")
+
+            print("\n  ROCSTAR DETAILS:")
             print(f"    {us['story']}")
+
+            if us.get("assembled_story"):
+                print("\n  USER STORY:")
+                print(f"    {us['assembled_story']}")
+
             if us.get("scenario"):
+                print(f"\n  SCENARIO:")
                 print(f"    {us['scenario']}")
 
         print(f"\n  ACCEPTANCE CRITERIA:\n    {result['acceptance_criteria']}")
