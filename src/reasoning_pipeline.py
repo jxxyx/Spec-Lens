@@ -2,6 +2,46 @@ from pathlib import Path
 from src.llava_utils import analyse_frame
 from src.io_utils import save_json, load_json, file_exists
 from src.frame_utils import filter_unique_frames
+import re
+
+def _extract_field(text: str, field_name: str) -> str:
+    """
+    Extract a ROCSTAR field such as Role, Objective, Context, or Result.
+    """
+    pattern = rf"{field_name}:\s*(.*)"
+    match = re.search(pattern, text)
+
+    if match:
+        return match.group(1).strip()
+
+    return ""
+
+
+def ensure_user_story_blocks(artefacts: dict) -> dict:
+    """
+    Ensure each parsed user story contains a clean assembled user story sentence.
+
+    If LLaVA outputs Role, Objective, Context, and Result but skips the
+    formatted User Story statement, this function reconstructs it.
+    """
+
+    for user_story in artefacts.get("user_stories", []):
+        story_text = user_story.get("story", "")
+
+        role = _extract_field(story_text, "Role")
+        objective = _extract_field(story_text, "Objective")
+        context = _extract_field(story_text, "Context")
+        result = _extract_field(story_text, "Result")
+
+        if role and objective and context and result:
+            user_story["story"] = (
+                f"As a {role}, "
+                f"I want to {objective}, "
+                f"In the context of {context}, "
+                f"So that {result}."
+            )
+
+    return artefacts
 
 
 def run_reasoning(
@@ -86,6 +126,11 @@ def run_reasoning(
                 cleaned_text=frame_result["cleaned_text"],
                 context_window=context_window,
             )
+
+            # Ensure every user story contains a completed
+            # "As a / I want / So that" statement
+            artefacts = ensure_user_story_blocks(artefacts)
+            
             error = None
         except Exception as exc:
             print(f"[WARNING] Reasoning failed on {frame['path']}: {exc}")
