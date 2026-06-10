@@ -33,6 +33,15 @@ def ensure_user_story_blocks(artefacts: dict) -> dict:
         context = _extract_field(story_text, "Context")
         result = _extract_field(story_text, "Result")
 
+        if objective.lower().startswith("to "):
+            objective = objective[3:]
+
+        if result.lower().startswith("to "):
+            result = result[3:]
+
+        if context.lower().startswith("within "):
+            context = context[7:]
+
         if role and objective and context and result:
             user_story["assembled_story"] = (
                 f"As a {role}, "
