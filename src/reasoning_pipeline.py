@@ -3,6 +3,7 @@ from src.llava_utils import analyse_frame
 from src.io_utils import save_json, load_json, file_exists
 from src.frame_utils import filter_unique_frames
 import re
+from src.validation_utils import validate_reasoning_output
 
 def _extract_field(text: str, field_name: str) -> str:
     """
@@ -139,6 +140,14 @@ def run_reasoning(
             # Ensure every user story contains a completed
             # "As a / I want / So that" statement
             artefacts = ensure_user_story_blocks(artefacts)
+
+            validation_report = validate_reasoning_output(artefacts)
+            artefacts["validation"] = validation_report
+
+            if not validation_report["valid"]:
+                print(f"[VALIDATION WARNING] Validation failed for {frame['path']}:")
+                for err in validation_report["errors"]:
+                    print(f"  - {err}")
             
             error = None
         except Exception as exc:
