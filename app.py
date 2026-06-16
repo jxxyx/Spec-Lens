@@ -12,8 +12,8 @@ def run_pipeline(video_path: str) -> list[dict]:
     # Google Drive base folder — all outputs are persisted here across Colab sessions
     DRIVE_BASE = "/content/drive/MyDrive/Spec-Lens-data"
 
-    # OCR engine: "deepseek" (default, lighter) or "deepseek" (higher accuracy)
-    OCR_ENGINE = "deepseek"
+    # OCR engine: "easyocr" (default, lighter) or "deepseek" (higher accuracy)
+    OCR_ENGINE = "easyocr"
 
     # Extract 1 frame every N frames from the video
     FRAME_INTERVAL = 30
