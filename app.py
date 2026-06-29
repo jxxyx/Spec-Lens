@@ -210,17 +210,19 @@ def format_results_for_display(reasoning_results: list[dict]) -> str:
 
 
 def run_app(video_path):
-    """
-    Wrapper function for Gradio.
-
-    Takes the uploaded video path, runs the full Spec-Lens pipeline,
-    and returns a formatted text report for display.
-    """
     if video_path is None:
-        return "Please upload a video first."
+        return "❌ Please upload a video first.", ""
 
     reasoning_results = run_pipeline(video_path)
-    return format_results_for_display(reasoning_results)
+
+    status_message = (
+        f"✅ Spec-Lens completed successfully. "
+        f"Generated BA artefacts for {len(reasoning_results)} unique screens."
+    )
+
+    formatted_report = format_results_for_display(reasoning_results)
+
+    return status_message, formatted_report
 
 
 with gr.Blocks() as demo:
@@ -230,18 +232,22 @@ with gr.Blocks() as demo:
 
     run_button = gr.Button("Run Spec-Lens")
 
+    status_box = gr.Textbox(
+        label="Status",
+        interactive=False,
+    )
+
     output_box = gr.Textbox(
         label="Generated BA Artefacts",
-        lines=30,
-        max_lines=50,
+        lines=40,
+        max_lines=80,
     )
 
     run_button.click(
         fn=run_app,
         inputs=video_input,
-        outputs=output_box,
+        outputs=[status_box, output_box],
     )
-
 
 
 demo.launch(share=True)
