@@ -139,56 +139,53 @@ def format_results_as_chat_bubbles(reasoning_results: list[dict]) -> list[tuple[
     """
     Convert reasoning results into a chat-style list of message pairs for Gradio Chatbot.
     """
-
     bubbles: list[tuple[str, str]] = []
-    bubbles.append(("User", "Please analyze the uploaded video and generate frame-by-frame BA artefacts."))
 
     if not reasoning_results:
-        bubbles.append(("Spec-Lens", "No reasoning results generated."))
-        return bubbles
+        return [("Spec-Lens", "No reasoning results generated.")]
 
-    for result in reasoning_results:
+    for idx, result in enumerate(reasoning_results, start=1):
+        speaker = f"Frame {idx}"
+
         frame = result.get("frame", {})
         frame_index = frame.get("frame_index", "Unknown")
         timestamp = frame.get("timestamp_s", "Unknown")
-        header = f"Frame {frame_index} @ {timestamp}s"
+        header = f"Original Frame: {frame_index} | Timestamp: {timestamp}s"
 
         if result.get("error"):
-            bubbles.append(("Spec-Lens", f"{header}\nERROR: {result['error']}"))
+            bubbles.append((speaker, f"{header}\nERROR: {result['error']}"))
             continue
 
-        lines = [header, "SCREEN SUMMARY:", result.get("screen_summary", "N/A")]
+        parts: list[str] = [header, "SCREEN SUMMARY:", result.get("screen_summary", "N/A")]
 
         user_stories = result.get("user_stories", [])
         if user_stories:
-            lines.append("USER STORIES:")
+            parts.append("USER STORIES:")
             for us_idx, us in enumerate(user_stories, start=1):
-                lines.append(f"{us_idx}. {us.get('title', 'Untitled')}")
+                parts.append(f"{us_idx}. {us.get('title', 'Untitled')}")
                 if us.get("assembled_story"):
-                    lines.append(f"   • User Story: {us['assembled_story']}")
+                    parts.append(f"   • User Story: {us['assembled_story']}")
                 if us.get("story"):
-                    lines.append(f"   • ROCSTAR Details: {us['story']}")
+                    parts.append(f"   • ROCSTAR Details: {us['story']}")
                 if us.get("scenario"):
-                    lines.append(f"   • Scenario: {us['scenario']}")
+                    parts.append(f"   • Scenario: {us['scenario']}")
 
-        lines.append("ACCEPTANCE CRITERIA:")
-        lines.append(result.get("acceptance_criteria", "N/A"))
-        lines.append("GAP ANALYSIS:")
-        lines.append(result.get("gap_analysis", "N/A"))
+        parts.append("ACCEPTANCE CRITERIA:")
+        parts.append(result.get("acceptance_criteria", "N/A"))
+        parts.append("GAP ANALYSIS:")
+        parts.append(result.get("gap_analysis", "N/A"))
 
         if result.get("validation"):
             validation = result["validation"]
-            lines.append("VALIDATION:")
-            lines.append(f"   • Valid: {validation.get('valid', False)}")
+            parts.append("VALIDATION:")
+            parts.append(f"   • Valid: {validation.get('valid', False)}")
             errors = validation.get("errors", [])
             if errors:
-                lines.append("   • Errors:")
+                parts.append("   • Errors:")
                 for err in errors:
-                    lines.append(f"     - {err}")
+                    parts.append(f"     - {err}")
 
-        bubbles.append(("Spec-Lens", "\n".join(lines)))
-
-    return bubbles
+        bubbles.append((speaker, "\n".join(parts)))
 
 
 def run_app(video_path):
@@ -212,8 +209,9 @@ def run_app(video_path):
 
 with gr.Blocks() as demo:
     gr.Markdown("# Spec-Lens: Multimodal BA Requirements Generator")
+    gr.Markdown("Upload a workflow video and click **Send** to process it. Each frame will appear as its own assistant bubble.")
 
-    video_input = gr.Video(label="Upload UI Workflow Video")
+    video_input = gr.Video(label="Upload UI Workflow Video", type="filepath")
 
     run_button = gr.Button("Send")
 
@@ -222,7 +220,35 @@ with gr.Blocks() as demo:
         interactive=False,
     )
 
-    chatbot = gr.Chatbot(label="Spec-Lens Chat Output")
+    chatbot = gr.Chatbot(elem_id="spec_lens_chat", label="Spec-Lens Chat Output")
+
+    # Inject JS to auto-scroll the chatbot container to the bottom when new messages arrive
+    gr.HTML(
+        """
+        <script>
+        (function(){
+          const waitFor = (fn, timeout=5000) => {
+            const start = Date.now();
+            const check = () => {
+              const el = document.getElementById('spec_lens_chat');
+              if (el) { fn(el); return; }
+              if (Date.now() - start < timeout) requestAnimationFrame(check);
+            };
+            check();
+          };
+
+          waitFor(function(chat){
+            // chat may contain an inner scrollable div; fallback to chat element
+            const container = chat.querySelector('.scrollable') || chat;
+            const observer = new MutationObserver(()=>{ container.scrollTop = container.scrollHeight; });
+            observer.observe(container, {childList:true, subtree:true});
+            // initial scroll
+            container.scrollTop = container.scrollHeight;
+          });
+        })();
+        </script>
+        """
+    )
 
     run_button.click(
         fn=run_app,
