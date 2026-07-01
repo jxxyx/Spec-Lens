@@ -135,14 +135,16 @@ def run_pipeline(video_path: str) -> list[dict]:
 
     return reasoning_results
 
-def format_results_as_chat_bubbles(reasoning_results: list[dict]) -> list[tuple[str, str]]:
+def format_results_as_chat_bubbles(reasoning_results: list[dict]) -> list[list[str]]:
+    """Convert reasoning results into a chat-style list-of-lists for Gradio Chatbot.
+
+    Each item is a two-element list: [speaker, message].
     """
-    Convert reasoning results into a chat-style list of message pairs for Gradio Chatbot.
-    """
-        bubbles: list[list[str]] = []
+
+    bubbles: list[list[str]] = []
 
     if not reasoning_results:
-        return [("Spec-Lens", "No reasoning results generated.")]
+        return [["Spec-Lens", "No reasoning results generated."]]
 
     for idx, result in enumerate(reasoning_results, start=1):
         speaker = f"Frame {idx}"
@@ -153,7 +155,7 @@ def format_results_as_chat_bubbles(reasoning_results: list[dict]) -> list[tuple[
         header = f"Original Frame: {frame_index} | Timestamp: {timestamp}s"
 
         if result.get("error"):
-                bubbles.append([speaker, f"{header}\nERROR: {result['error']}"])
+            bubbles.append([speaker, f"{header}\nERROR: {result['error']}"])
             continue
 
         parts: list[str] = [header, "SCREEN SUMMARY:", result.get("screen_summary", "N/A")]
@@ -185,7 +187,9 @@ def format_results_as_chat_bubbles(reasoning_results: list[dict]) -> list[tuple[
                 for err in errors:
                     parts.append(f"     - {err}")
 
-            bubbles.append([speaker, "\n".join(parts)])
+        bubbles.append([speaker, "\n".join(parts)])
+
+    return bubbles
 
 
 def run_app(video_path):
