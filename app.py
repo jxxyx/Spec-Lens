@@ -211,7 +211,7 @@ with gr.Blocks() as demo:
     gr.Markdown("# Spec-Lens: Multimodal BA Requirements Generator")
     gr.Markdown("Upload a workflow video and click **Send** to process it. Each frame will appear as its own assistant bubble.")
 
-    video_input = gr.Video(label="Upload UI Workflow Video", type="filepath")
+    video_input = gr.Video(label="Upload UI Workflow Video")
 
     run_button = gr.Button("Send")
 
