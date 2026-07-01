@@ -135,83 +135,65 @@ def run_pipeline(video_path: str) -> list[dict]:
 
     return reasoning_results
 
-def format_results_for_display(reasoning_results: list[dict]) -> str:
+def format_results_as_chat_bubbles(reasoning_results: list[dict]) -> list[tuple[str, str]]:
     """
-    Convert machine-readable reasoning results into a human-readable report
-    for display in Gradio.
+    Convert reasoning results into a chat-style list of message pairs for Gradio Chatbot.
     """
+
+    bubbles: list[tuple[str, str]] = []
+    bubbles.append(("User", "Please analyze the uploaded video and generate frame-by-frame BA artefacts."))
 
     if not reasoning_results:
-        return "No reasoning results generated."
+        bubbles.append(("Spec-Lens", "No reasoning results generated."))
+        return bubbles
 
-    report_sections = []
-
-    for idx, result in enumerate(reasoning_results, start=1):
+    for result in reasoning_results:
         frame = result.get("frame", {})
         frame_index = frame.get("frame_index", "Unknown")
         timestamp = frame.get("timestamp_s", "Unknown")
-
-        section = []
-
-        section.append(
-            f"=== Frame {idx} | Original Frame: {frame_index} | Timestamp: {timestamp}s ==="
-        )
+        header = f"Frame {frame_index} @ {timestamp}s"
 
         if result.get("error"):
-            section.append(f"\nERROR:\n{result['error']}")
-            report_sections.append("\n".join(section))
+            bubbles.append(("Spec-Lens", f"{header}\nERROR: {result['error']}"))
             continue
 
-        section.append("\nSCREEN SUMMARY:")
-        section.append(result.get("screen_summary", "N/A"))
+        lines = [header, "SCREEN SUMMARY:", result.get("screen_summary", "N/A")]
 
-        section.append("\nUSER STORIES:")
+        user_stories = result.get("user_stories", [])
+        if user_stories:
+            lines.append("USER STORIES:")
+            for us_idx, us in enumerate(user_stories, start=1):
+                lines.append(f"{us_idx}. {us.get('title', 'Untitled')}")
+                if us.get("assembled_story"):
+                    lines.append(f"   • User Story: {us['assembled_story']}")
+                if us.get("story"):
+                    lines.append(f"   • ROCSTAR Details: {us['story']}")
+                if us.get("scenario"):
+                    lines.append(f"   • Scenario: {us['scenario']}")
 
-        for us_idx, us in enumerate(result.get("user_stories", []), start=1):
-
-            section.append(f"\nUS-{us_idx}: {us.get('title', 'Untitled')}")
-
-            if us.get("assembled_story"):
-                section.append("\nUser Story:")
-                section.append(us["assembled_story"])
-
-            if us.get("story"):
-                section.append("\nROCSTAR Details:")
-                section.append(us["story"])
-
-            if us.get("scenario"):
-                section.append("\nScenario:")
-                section.append(us["scenario"])
-
-        section.append("\nACCEPTANCE CRITERIA:")
-        section.append(result.get("acceptance_criteria", "N/A"))
-
-        section.append("\nGAP ANALYSIS:")
-        section.append(result.get("gap_analysis", "N/A"))
+        lines.append("ACCEPTANCE CRITERIA:")
+        lines.append(result.get("acceptance_criteria", "N/A"))
+        lines.append("GAP ANALYSIS:")
+        lines.append(result.get("gap_analysis", "N/A"))
 
         if result.get("validation"):
             validation = result["validation"]
-
-            section.append("\nVALIDATION:")
-            section.append(f"Valid: {validation.get('valid', False)}")
-
+            lines.append("VALIDATION:")
+            lines.append(f"   • Valid: {validation.get('valid', False)}")
             errors = validation.get("errors", [])
-
             if errors:
-                section.append("Errors:")
-
+                lines.append("   • Errors:")
                 for err in errors:
-                    section.append(f"- {err}")
+                    lines.append(f"     - {err}")
 
-        report_sections.append("\n".join(section))
+        bubbles.append(("Spec-Lens", "\n".join(lines)))
 
-    # Separator between every frame
-    return ("\n" + "=" * 100 + "\n").join(report_sections)
+    return bubbles
 
 
 def run_app(video_path):
     if video_path is None:
-        return "❌ Please upload a video first.", ""
+        return "❌ Please upload a video first.", []
 
     reasoning_results = run_pipeline(video_path)
 
@@ -220,33 +202,29 @@ def run_app(video_path):
         f"Generated BA artefacts for {len(reasoning_results)} unique screens."
     )
 
-    formatted_report = format_results_for_display(reasoning_results)
+    chat_bubbles = format_results_as_chat_bubbles(reasoning_results)
 
-    return status_message, formatted_report
+    return status_message, chat_bubbles
 
 
 with gr.Blocks() as demo:
     gr.Markdown("# Spec-Lens: Multimodal BA Requirements Generator")
 
-    video_input = gr.Video(label="Upload UI Workflow Video")
+    video_input = gr.Video(label="Upload UI Workflow Video", type="filepath")
 
-    run_button = gr.Button("Run Spec-Lens")
+    run_button = gr.Button("Send")
 
     status_box = gr.Textbox(
         label="Status",
         interactive=False,
     )
 
-    output_box = gr.Textbox(
-        label="Generated BA Artefacts",
-        lines=40,
-        max_lines=80,
-    )
+    chatbot = gr.Chatbot(label="Spec-Lens Chat Output")
 
     run_button.click(
         fn=run_app,
         inputs=video_input,
-        outputs=[status_box, output_box],
+        outputs=[status_box, chatbot],
     )
 
 
