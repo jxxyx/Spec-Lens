@@ -139,7 +139,7 @@ def format_results_as_chat_bubbles(reasoning_results: list[dict]) -> list[tuple[
     """
     Convert reasoning results into a chat-style list of message pairs for Gradio Chatbot.
     """
-    bubbles: list[tuple[str, str]] = []
+        bubbles: list[list[str]] = []
 
     if not reasoning_results:
         return [("Spec-Lens", "No reasoning results generated.")]
@@ -153,7 +153,7 @@ def format_results_as_chat_bubbles(reasoning_results: list[dict]) -> list[tuple[
         header = f"Original Frame: {frame_index} | Timestamp: {timestamp}s"
 
         if result.get("error"):
-            bubbles.append((speaker, f"{header}\nERROR: {result['error']}"))
+                bubbles.append([speaker, f"{header}\nERROR: {result['error']}"])
             continue
 
         parts: list[str] = [header, "SCREEN SUMMARY:", result.get("screen_summary", "N/A")]
@@ -185,7 +185,7 @@ def format_results_as_chat_bubbles(reasoning_results: list[dict]) -> list[tuple[
                 for err in errors:
                     parts.append(f"     - {err}")
 
-        bubbles.append((speaker, "\n".join(parts)))
+            bubbles.append([speaker, "\n".join(parts)])
 
 
 def run_app(video_path):
