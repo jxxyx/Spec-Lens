@@ -195,6 +195,9 @@ def run_app(video_path):
     if video_path is None:
         return "❌ Please upload a video first.", []
 
+    if isinstance(video_path, dict):
+        video_path = video_path.get("path") or video_path.get("video")
+
     reasoning_results = run_pipeline(video_path)
 
     status_message = (
@@ -210,7 +213,7 @@ def run_app(video_path):
 with gr.Blocks() as demo:
     gr.Markdown("# Spec-Lens: Multimodal BA Requirements Generator")
 
-    video_input = gr.Video(label="Upload UI Workflow Video", type="filepath")
+    video_input = gr.Video(label="Upload UI Workflow Video")
 
     run_button = gr.Button("Send")
 
