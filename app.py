@@ -183,9 +183,14 @@ def format_results_as_chat_bubbles(reasoning_results: list[dict]) -> list[list[s
             parts.append(f"   • Valid: {validation.get('valid', False)}")
             errors = validation.get("errors", [])
             if errors:
-                parts.append("   • Errors:")
+                parts.append("   • Errors (full):")
                 for err in errors:
-                    parts.append(f"     - {err}")
+                    # Support structured error items (dict/list) and plain strings
+                    if isinstance(err, (dict, list)):
+                        err_str = json.dumps(err, ensure_ascii=False)
+                    else:
+                        err_str = str(err)
+                    parts.append(f"     - {err_str}")
 
         bubbles.append([speaker, "\n".join(parts)])
 
@@ -201,19 +206,34 @@ def run_app(video_path):
 
     reasoning_results = run_pipeline(video_path)
 
-    # Determine if any reasoning result contains a validation object
-    # that marks the screen as invalid. If so, return a failure status
-    # so the UI can show that validation failed.
+    # Collect validation failures (frame index, timestamp, brief errors)
     invalid_count = 0
+    failed_frames = []
     for r in reasoning_results:
         v = r.get("validation")
         if v is not None and not v.get("valid", False):
             invalid_count += 1
+            frame = r.get("frame", {})
+            frame_index = frame.get("frame_index", "Unknown")
+            timestamp = frame.get("timestamp_s")
+            ts_str = f"t={timestamp}s" if timestamp is not None else "t=?s"
+
+            errors = v.get("errors", []) if isinstance(v, dict) else []
+            if errors:
+                # Join up to first 3 error messages to keep status concise
+                err_summary = "; ".join(errors[:3])
+                if len(errors) > 3:
+                    err_summary += " (and more)"
+            else:
+                err_summary = "validation failed"
+
+            failed_frames.append(f"Frame {frame_index} ({ts_str}): {err_summary}")
 
     if invalid_count > 0:
+        failure_details = "; ".join(failed_frames)
         status_message = (
-            f"❌ Spec-Lens completed with validation failures: "
-            f"{invalid_count} of {len(reasoning_results)} screens failed validation."
+            f"❌ Spec-Lens completed with validation failures: {invalid_count} of {len(reasoning_results)} screens failed validation. "
+            f"Failed frames: {failure_details}"
         )
     else:
         status_message = (
