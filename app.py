@@ -201,10 +201,25 @@ def run_app(video_path):
 
     reasoning_results = run_pipeline(video_path)
 
-    status_message = (
-        f"✅ Spec-Lens completed successfully. "
-        f"Generated BA artefacts for {len(reasoning_results)} unique screens."
-    )
+    # Determine if any reasoning result contains a validation object
+    # that marks the screen as invalid. If so, return a failure status
+    # so the UI can show that validation failed.
+    invalid_count = 0
+    for r in reasoning_results:
+        v = r.get("validation")
+        if v is not None and not v.get("valid", False):
+            invalid_count += 1
+
+    if invalid_count > 0:
+        status_message = (
+            f"❌ Spec-Lens completed with validation failures: "
+            f"{invalid_count} of {len(reasoning_results)} screens failed validation."
+        )
+    else:
+        status_message = (
+            f"✅ Spec-Lens completed successfully. "
+            f"Generated BA artefacts for {len(reasoning_results)} unique screens."
+        )
 
     chat_bubbles = format_results_as_chat_bubbles(reasoning_results)
 
